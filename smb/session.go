@@ -181,6 +181,15 @@ func (s *Session) IsSigningRequired() bool {
 	return s.isSigningRequired.Load()
 }
 
+func (c *Connection) IsSigningSupported() bool {
+	mode := uint16(c.securityMode)
+	return (mode & SecurityModeSigningEnabled) > 0
+}
+
+func (c *Connection) GetSecurityMode() uint16 {
+	return c.securityMode
+}
+
 func (c *Connection) NegotiateProtocol() error {
 	var rr *requestResponse
 	var negRes NegotiateRes

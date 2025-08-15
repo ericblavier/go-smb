@@ -189,11 +189,13 @@ func showSupportedDialects() {
 func showNegotiationResult(session *smb.Connection) {
 	fmt.Println("\n🎯 Negotiation Result:")
 
-	if session.IsSigningRequired() {
-		fmt.Println("   🔐 Signing: Required")
-	} else {
-		fmt.Println("   🔐 Signing: Optional")
-	}
+	// Get detailed signing information
+	signingSupported := getSigningInfo(session, "supported")
+	signingRequired := getSigningInfo(session, "required")
+
+	// Display SMB Signing status
+	fmt.Printf("   🔐 SMB Signing Supported: %s\n", formatYesNo(signingSupported))
+	fmt.Printf("   🔐 SMB Signing Required: %s\n", formatYesNo(signingRequired))
 
 	// Show authentication status
 	if session.IsAuthenticated() {
@@ -201,6 +203,24 @@ func showNegotiationResult(session *smb.Connection) {
 	} else {
 		fmt.Println("   👤 Authentication: Anonymous/Null session")
 	}
+}
+
+func getSigningInfo(session *smb.Connection, infoType string) bool {
+	switch infoType {
+	case "required":
+		return session.IsSigningRequired()
+	case "supported":
+		return session.IsSigningSupported()
+	default:
+		return false
+	}
+}
+
+func formatYesNo(value bool) string {
+	if value {
+		return "✅ Yes"
+	}
+	return "❌ No"
 }
 
 func getDialectName(dialect uint16) string {
