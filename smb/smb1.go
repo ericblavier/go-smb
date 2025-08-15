@@ -134,44 +134,73 @@ func (self *SMB1NegotiateRes) UnmarshalBinary(buf []byte, meta *encoder.Metadata
 		return nil
 	}
 
-	if len(buf) < offset+int(self.WordCount)*2+2 {
-		return fmt.Errorf("SMB1 negotiate response truncated")
+	// Parse DialectIndex (required field)
+	if len(buf) < offset+2 {
+		return fmt.Errorf("SMB1 negotiate response missing DialectIndex")
 	}
-
-	// Parse fixed fields
 	self.DialectIndex = binary.LittleEndian.Uint16(buf[offset : offset+2])
 	offset += 2
-	self.SecurityMode = buf[offset]
-	offset++
-	self.MaxMpxCount = binary.LittleEndian.Uint16(buf[offset : offset+2])
-	offset += 2
-	self.MaxVcCount = binary.LittleEndian.Uint16(buf[offset : offset+2])
-	offset += 2
-	self.MaxBufSize = binary.LittleEndian.Uint32(buf[offset : offset+4])
-	offset += 4
-	self.MaxRawSize = binary.LittleEndian.Uint32(buf[offset : offset+4])
-	offset += 4
-	self.SessionKey = binary.LittleEndian.Uint32(buf[offset : offset+4])
-	offset += 4
-	self.Capabilities = binary.LittleEndian.Uint32(buf[offset : offset+4])
-	offset += 4
-	self.SystemTime = binary.LittleEndian.Uint64(buf[offset : offset+8])
-	offset += 8
-	self.TimeZone = int16(binary.LittleEndian.Uint16(buf[offset : offset+2]))
-	offset += 2
-	self.KeyLength = buf[offset]
-	offset++
+
+	// Parse remaining fields with bounds checking - some servers send shorter responses
+	if len(buf) >= offset+1 {
+		self.SecurityMode = buf[offset]
+		offset++
+	}
+
+	if len(buf) >= offset+2 {
+		self.MaxMpxCount = binary.LittleEndian.Uint16(buf[offset : offset+2])
+		offset += 2
+	}
+
+	if len(buf) >= offset+2 {
+		self.MaxVcCount = binary.LittleEndian.Uint16(buf[offset : offset+2])
+		offset += 2
+	}
+
+	if len(buf) >= offset+4 {
+		self.MaxBufSize = binary.LittleEndian.Uint32(buf[offset : offset+4])
+		offset += 4
+	}
+
+	if len(buf) >= offset+4 {
+		self.MaxRawSize = binary.LittleEndian.Uint32(buf[offset : offset+4])
+		offset += 4
+	}
+
+	if len(buf) >= offset+4 {
+		self.SessionKey = binary.LittleEndian.Uint32(buf[offset : offset+4])
+		offset += 4
+	}
+
+	if len(buf) >= offset+4 {
+		self.Capabilities = binary.LittleEndian.Uint32(buf[offset : offset+4])
+		offset += 4
+	}
+
+	if len(buf) >= offset+8 {
+		self.SystemTime = binary.LittleEndian.Uint64(buf[offset : offset+8])
+		offset += 8
+	}
+
+	if len(buf) >= offset+2 {
+		self.TimeZone = int16(binary.LittleEndian.Uint16(buf[offset : offset+2]))
+		offset += 2
+	}
+
+	if len(buf) >= offset+1 {
+		self.KeyLength = buf[offset]
+		offset++
+	}
 
 	// Parse ByteCount and SecurityBlob
-	if len(buf) < offset+2 {
-		return fmt.Errorf("SMB1 negotiate response missing ByteCount")
-	}
-	self.ByteCount = binary.LittleEndian.Uint16(buf[offset : offset+2])
-	offset += 2
+	if len(buf) >= offset+2 {
+		self.ByteCount = binary.LittleEndian.Uint16(buf[offset : offset+2])
+		offset += 2
 
-	if self.KeyLength > 0 && len(buf) >= offset+int(self.KeyLength) {
-		self.SecurityBlob = make([]byte, self.KeyLength)
-		copy(self.SecurityBlob, buf[offset:offset+int(self.KeyLength)])
+		if self.KeyLength > 0 && len(buf) >= offset+int(self.KeyLength) {
+			self.SecurityBlob = make([]byte, self.KeyLength)
+			copy(self.SecurityBlob, buf[offset:offset+int(self.KeyLength)])
+		}
 	}
 
 	return nil
@@ -191,8 +220,38 @@ func (s *Session) NewSMB1NegotiateReq() (req SMB1NegotiateReq, err error) {
 		TID:              0xffff,
 	}
 
-	// Dialects ordered in increasing preference
+	// Dialects ordered in increasing preference (SMBv1 first, then SMBv2)
 	dialects := []SMB1Dialect{
+		// Traditional SMBv1 dialects for compatibility
+		SMB1Dialect{
+			BufferFormat:  0x2,
+			DialectString: string("PC NETWORK PROGRAM 1.0\x00"),
+		},
+		SMB1Dialect{
+			BufferFormat:  0x2,
+			DialectString: string("LANMAN1.0\x00"),
+		},
+		SMB1Dialect{
+			BufferFormat:  0x2,
+			DialectString: string("Windows for Workgroups 3.1a\x00"),
+		},
+		SMB1Dialect{
+			BufferFormat:  0x2,
+			DialectString: string("LM1.2X002\x00"),
+		},
+		SMB1Dialect{
+			BufferFormat:  0x2,
+			DialectString: string("LANMAN2.1\x00"),
+		},
+		SMB1Dialect{
+			BufferFormat:  0x2,
+			DialectString: string("NT LM 0.12\x00"),
+		},
+		// SMBv2 dialects (higher preference)
+		SMB1Dialect{
+			BufferFormat:  0x2,
+			DialectString: string("SMB 2.002\x00"),
+		},
 		SMB1Dialect{
 			BufferFormat:  0x2,
 			DialectString: string("SMB 2.100\x00"),

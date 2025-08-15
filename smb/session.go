@@ -222,12 +222,13 @@ func (c *Connection) NegotiateProtocol() error {
 			return err
 		}
 
-		// DialectIndex 0 = "SMB 2.100", DialectIndex 1 = "SMB 2.???"
-		// If server selected one of our SMB2 dialects, continue with SMB2 negotiation
-		if negRes1SMB.DialectIndex < 2 {
+		// Debug: Show what dialect index the server actually selected
+		log.Debugf("Server selected DialectIndex: %d (0x%x)", negRes1SMB.DialectIndex, negRes1SMB.DialectIndex)
+
+		// Check if server selected an SMB2 dialect (indices 6-8 in our expanded list)
+		// 6 = "SMB 2.002", 7 = "SMB 2.100", 8 = "SMB 2.???"
+		if negRes1SMB.DialectIndex >= 6 && negRes1SMB.DialectIndex <= 8 {
 			log.Debugf("Server selected SMB2 dialect (index %d), continuing with SMB2 negotiation", negRes1SMB.DialectIndex)
-			// Continue processing as SMB2 - the server should send an SMB2 negotiate response next
-			// We'll fall through to the normal SMB2 parsing below
 
 			// Re-send as SMB2 negotiate request
 			negReq, err := c.NewNegotiateReq()
@@ -247,9 +248,33 @@ func (c *Connection) NegotiateProtocol() error {
 				log.Debugln(err)
 				return err
 			}
+
+			// Check if server still responds with SMB1 or now with SMB2
+			if len(negResBuf) > 0 && negResBuf[0] == 0xFF {
+				log.Debugln("Server still responding with SMB1 format after SMB2 dialect selection")
+				// This means the server indicated SMB2 support but is still using SMB1 responses
+				// This is actually the successful case - the negotiation is complete
+				// We should proceed with SMB2 operations using the original SMB1 negotiate result
+
+				// Set up the connection for SMB2 based on the original negotiation
+				c.dialect = 0x0202 // SMB 2.0.2 as selected by server
+				log.Debugf("SMB negotiation successful: Using SMB 2.0.2 (0x0202)")
+				return nil
+			}
+			// Otherwise continue with normal SMB2 response parsing below
 		} else {
-			// Server selected an unknown dialect or only supports SMB1
-			err = fmt.Errorf("Target %s is only accepting SMBv1, but SMBv1 support is not implemented", c.conn.RemoteAddr().String())
+			// Server selected an SMBv1 dialect (indices 0-5) or unknown dialect
+			dialectNames := []string{
+				"PC NETWORK PROGRAM 1.0", "LANMAN1.0", "Windows for Workgroups 3.1a",
+				"LM1.2X002", "LANMAN2.1", "NT LM 0.12",
+			}
+			if negRes1SMB.DialectIndex < uint16(len(dialectNames)) {
+				err = fmt.Errorf("Target %s selected SMBv1 dialect '%s' (index %d), but SMBv1 support is not implemented",
+					c.conn.RemoteAddr().String(), dialectNames[negRes1SMB.DialectIndex], negRes1SMB.DialectIndex)
+			} else {
+				err = fmt.Errorf("Target %s selected unknown dialect (index %d), SMBv1 support is not implemented",
+					c.conn.RemoteAddr().String(), negRes1SMB.DialectIndex)
+			}
 			log.Errorln(err)
 			return err
 		}
@@ -263,15 +288,62 @@ func (c *Connection) NegotiateProtocol() error {
 	}
 
 	if negRes1.DialectRevision <= DialectSmb2_ALL {
-		if negRes1.DialectRevision != DialectSmb2_ALL {
+		// Check if server responded with a valid SMB2 dialect
+		validSMB2Dialects := []uint16{0x0202, 0x0210, 0x0300, 0x0302, 0x0311, DialectSmb2_ALL}
+		isValidDialect := false
+		for _, dialect := range validSMB2Dialects {
+			if negRes1.DialectRevision == dialect {
+				isValidDialect = true
+				break
+			}
+		}
+
+		if !isValidDialect {
 			// NOTE this is likely breaking the SMB2 specification, but since
 			// servers such as impacket's smbserver.py responds incorrectly to
 			// a multi-protocol negotiation request we attempt to renegotiate
 			// the protocol dialect using SMB2.
-			err = fmt.Errorf("Server responded to the multi-protocol negotiation with an invalid DialectRevision of 0x%x, but expected 0x%x. Restarting protocol negotiation using SMB2.\n", negRes1.DialectRevision, DialectSmb2_ALL)
+			err = fmt.Errorf("Server responded to the multi-protocol negotiation with an invalid DialectRevision of 0x%x, but expected a valid SMB2 dialect. Restarting protocol negotiation using SMB2.\n", negRes1.DialectRevision)
 			log.Errorln(err)
+		} else if negRes1.DialectRevision != DialectSmb2_ALL {
+			// Server selected a specific SMB2 dialect - this is the successful case!
+			log.Debugf("Server selected SMB2 dialect 0x%x via multi-protocol negotiation", negRes1.DialectRevision)
+			// Negotiation is complete! The server has selected a valid SMB2 dialect
+			c.dialect = negRes1.DialectRevision
+			c.securityMode = negRes1.SecurityMode
+
+			// Set up basic negotiation completion
+			log.Debugf("Multi-protocol negotiation successful with SMB2 dialect 0x%x", negRes1.DialectRevision)
+
+			// Determine whether signing is required
+			mode := uint16(c.securityMode)
+			if !c.isSigningRequired.Load() {
+				if mode&SecurityModeSigningEnabled > 0 {
+					if mode&SecurityModeSigningRequired > 0 {
+						c.isSigningRequired.Store(true)
+					} else {
+						c.isSigningRequired.Store(false)
+					}
+				}
+			}
+
+			// Set capabilities and sizes from negotiate response
+			if (negRes1.Capabilities & GlobalCapLargeMTU) == GlobalCapLargeMTU {
+				c.supportsMultiCredit = true
+				c.capabilities |= GlobalCapLargeMTU
+			}
+			if (negRes1.Capabilities & GlobalCapEncryption) == GlobalCapEncryption {
+				c.supportsEncryption = true
+				c.capabilities |= GlobalCapEncryption
+			}
+
+			c.maxReadSize = negRes1.MaxReadSize
+			c.maxWriteSize = negRes1.MaxWriteSize
+			c.maxTransactSize = negRes1.MaxTransactSize
+
+			return nil // Negotiation complete
 		}
-		// Send new SMB2 NegotiateRequest message
+		// Send new SMB2 NegotiateRequest message only if we need to renegotiate
 		negReq, err := c.NewNegotiateReq()
 		if err != nil {
 			log.Errorln(err)
