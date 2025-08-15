@@ -38,8 +38,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/jfjallid/go-smb/gss"
-	"github.com/jfjallid/go-smb/smb/encoder"
+	"github.com/ericblavier/go-smb/gss"
+	"github.com/ericblavier/go-smb/smb/encoder"
 	"golang.org/x/net/proxy"
 )
 

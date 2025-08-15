@@ -25,12 +25,12 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/jfjallid/go-smb/msdtyp"
-	"github.com/jfjallid/go-smb/smb/dcerpc"
+	"github.com/ericblavier/go-smb/msdtyp"
+	"github.com/ericblavier/go-smb/smb/dcerpc"
 	"github.com/jfjallid/golog"
 )
 
-var log = golog.Get("github.com/jfjallid/go-smb/smb/dcerpc/msrrp")
+var log = golog.Get("github.com/ericblavier/go-smb/smb/dcerpc/msrrp")
 
 var (
 	MSRRPUuid                = "338CD001-2244-31F1-AAAA-900038001003"

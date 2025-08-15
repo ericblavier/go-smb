@@ -26,12 +26,12 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/jfjallid/go-smb/smb/dcerpc"
+	"github.com/ericblavier/go-smb/smb/dcerpc"
 	"github.com/jfjallid/golog"
 )
 
 var (
-	log                  = golog.Get("github.com/jfjallid/go-smb/smb/dcerpc/mswkst")
+	log                  = golog.Get("github.com/ericblavier/go-smb/smb/dcerpc/mswkst")
 	le  binary.ByteOrder = binary.LittleEndian
 )
 

@@ -36,7 +36,7 @@ import (
 	"io"
 	"sync/atomic"
 
-	"github.com/jfjallid/go-smb/smb"
+	"github.com/ericblavier/go-smb/smb"
 )
 
 // Unused

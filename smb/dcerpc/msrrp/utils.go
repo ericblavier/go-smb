@@ -27,7 +27,7 @@ import (
 	"io"
 	"unicode/utf16"
 
-	"github.com/jfjallid/go-smb/msdtyp"
+	"github.com/ericblavier/go-smb/msdtyp"
 )
 
 //Always nullTerminate NewUnicodeStrings

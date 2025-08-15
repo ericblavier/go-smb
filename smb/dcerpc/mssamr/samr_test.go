@@ -27,7 +27,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/jfjallid/go-smb/msdtyp"
+	"github.com/ericblavier/go-smb/msdtyp"
 )
 
 func TestEncryptRC4(t *testing.T) {

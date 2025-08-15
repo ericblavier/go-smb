@@ -34,7 +34,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/jfjallid/go-smb/msdtyp"
+	"github.com/ericblavier/go-smb/msdtyp"
 )
 
 func TestLsarCloseHandleReq(t *testing.T) {

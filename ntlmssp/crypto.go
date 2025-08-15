@@ -26,7 +26,7 @@ import (
 	"crypto/md5"
 	"strings"
 
-	"github.com/jfjallid/go-smb/smb/encoder"
+	"github.com/ericblavier/go-smb/smb/encoder"
 	"golang.org/x/crypto/md4"
 )
 

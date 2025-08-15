@@ -35,8 +35,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/jfjallid/go-smb/msdtyp"
-	"github.com/jfjallid/go-smb/smb/dcerpc"
+	"github.com/ericblavier/go-smb/msdtyp"
+	"github.com/ericblavier/go-smb/smb/dcerpc"
 )
 
 type RPCCon struct {

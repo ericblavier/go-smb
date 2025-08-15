@@ -26,7 +26,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/jfjallid/go-smb/smb/encoder"
+	"github.com/ericblavier/go-smb/smb/encoder"
 )
 
 const (
@@ -92,6 +92,93 @@ func (self *SMB1NegotiateReq) MarshalBinary(meta *encoder.Metadata) ([]byte, err
 
 func (self *SMB1NegotiateReq) UnmarshalBinary(buf []byte, meta *encoder.Metadata) error {
 	return fmt.Errorf("NOT IMPLEMENTED UnmarshalBinary for SMB1NegotiateReq")
+}
+
+// MS-CIFS 2.2.4.52.2 SMB_COM_NEGOTIATE Response
+type SMB1NegotiateRes struct {
+	Header       SMB1Header
+	WordCount    uint8
+	DialectIndex uint16 // Index of selected dialect, 0xFFFF if no dialect acceptable
+	SecurityMode uint8  // Security mode flags
+	MaxMpxCount  uint16 // Maximum pending multiplexed requests
+	MaxVcCount   uint16 // Maximum VCs between client and server
+	MaxBufSize   uint32 // Maximum transmit buffer size
+	MaxRawSize   uint32 // Maximum raw buffer size
+	SessionKey   uint32 // Unique token identifying session
+	Capabilities uint32 // Server capabilities
+	SystemTime   uint64 // Server time (FILETIME)
+	TimeZone     int16  // Server time zone (minutes from UTC)
+	KeyLength    uint8  // Security blob length
+	ByteCount    uint16 // Count of data bytes
+	SecurityBlob []byte // Security blob (NTLM challenge, etc.)
+}
+
+func (self *SMB1NegotiateRes) UnmarshalBinary(buf []byte, meta *encoder.Metadata) error {
+	if len(buf) < 37 { // Minimum size: 32 byte header + 5 bytes minimum response
+		return fmt.Errorf("SMB1 negotiate response too short: %d bytes", len(buf))
+	}
+
+	// Parse header
+	if err := encoder.Unmarshal(buf[:32], &self.Header); err != nil {
+		return fmt.Errorf("failed to unmarshal SMB1 header: %v", err)
+	}
+
+	// Parse negotiate response body
+	offset := 32
+	self.WordCount = buf[offset]
+	offset++
+
+	if self.WordCount == 0 {
+		// No common dialect found
+		self.DialectIndex = 0xFFFF
+		return nil
+	}
+
+	if len(buf) < offset+int(self.WordCount)*2+2 {
+		return fmt.Errorf("SMB1 negotiate response truncated")
+	}
+
+	// Parse fixed fields
+	self.DialectIndex = binary.LittleEndian.Uint16(buf[offset : offset+2])
+	offset += 2
+	self.SecurityMode = buf[offset]
+	offset++
+	self.MaxMpxCount = binary.LittleEndian.Uint16(buf[offset : offset+2])
+	offset += 2
+	self.MaxVcCount = binary.LittleEndian.Uint16(buf[offset : offset+2])
+	offset += 2
+	self.MaxBufSize = binary.LittleEndian.Uint32(buf[offset : offset+4])
+	offset += 4
+	self.MaxRawSize = binary.LittleEndian.Uint32(buf[offset : offset+4])
+	offset += 4
+	self.SessionKey = binary.LittleEndian.Uint32(buf[offset : offset+4])
+	offset += 4
+	self.Capabilities = binary.LittleEndian.Uint32(buf[offset : offset+4])
+	offset += 4
+	self.SystemTime = binary.LittleEndian.Uint64(buf[offset : offset+8])
+	offset += 8
+	self.TimeZone = int16(binary.LittleEndian.Uint16(buf[offset : offset+2]))
+	offset += 2
+	self.KeyLength = buf[offset]
+	offset++
+
+	// Parse ByteCount and SecurityBlob
+	if len(buf) < offset+2 {
+		return fmt.Errorf("SMB1 negotiate response missing ByteCount")
+	}
+	self.ByteCount = binary.LittleEndian.Uint16(buf[offset : offset+2])
+	offset += 2
+
+	if self.KeyLength > 0 && len(buf) >= offset+int(self.KeyLength) {
+		self.SecurityBlob = make([]byte, self.KeyLength)
+		copy(self.SecurityBlob, buf[offset:offset+int(self.KeyLength)])
+	}
+
+	return nil
+}
+
+func (self *SMB1NegotiateRes) MarshalBinary(meta *encoder.Metadata) ([]byte, error) {
+	return nil, fmt.Errorf("NOT IMPLEMENTED MarshalBinary for SMB1NegotiateRes")
 }
 
 func (s *Session) NewSMB1NegotiateReq() (req SMB1NegotiateReq, err error) {

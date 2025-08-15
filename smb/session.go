@@ -41,12 +41,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/jfjallid/go-smb/gss"
-	"github.com/jfjallid/go-smb/ntlmssp"
-	"github.com/jfjallid/go-smb/smb/crypto/ccm"
-	"github.com/jfjallid/go-smb/smb/crypto/cmac"
-	"github.com/jfjallid/go-smb/smb/encoder"
-	"github.com/jfjallid/go-smb/spnego"
+	"github.com/ericblavier/go-smb/gss"
+	"github.com/ericblavier/go-smb/ntlmssp"
+	"github.com/ericblavier/go-smb/smb/crypto/ccm"
+	"github.com/ericblavier/go-smb/smb/crypto/cmac"
+	"github.com/ericblavier/go-smb/smb/encoder"
+	"github.com/ericblavier/go-smb/spnego"
 	"golang.org/x/net/proxy"
 )
 
@@ -204,10 +204,55 @@ func (c *Connection) NegotiateProtocol() error {
 	}
 
 	if negResBuf[0] == 0xFF {
-		// Server does not support or want to use SMB2.
-		err = fmt.Errorf("Target %s is only accepting SMBv1, but SMBv1 support is not implemented", c.conn.RemoteAddr().String())
-		log.Errorln(err) // Skip print?
-		return err
+		// Server responded with SMB1 negotiate response.
+		// Parse it to see if it supports SMB2 dialects.
+		log.Debugln("Received SMB1 negotiate response, parsing to check supported dialects")
+
+		negRes1SMB := SMB1NegotiateRes{}
+		if err := encoder.Unmarshal(negResBuf, &negRes1SMB); err != nil {
+			log.Debugf("Error parsing SMB1 negotiate response: %v\nRaw:\n%v\n", err, hex.Dump(negResBuf))
+			return err
+		}
+
+		// Check if server selected an SMB2 dialect
+		if negRes1SMB.DialectIndex == 0xFFFF {
+			// No common dialect found
+			err = fmt.Errorf("Target %s has no common SMB dialects", c.conn.RemoteAddr().String())
+			log.Errorln(err)
+			return err
+		}
+
+		// DialectIndex 0 = "SMB 2.100", DialectIndex 1 = "SMB 2.???"
+		// If server selected one of our SMB2 dialects, continue with SMB2 negotiation
+		if negRes1SMB.DialectIndex < 2 {
+			log.Debugf("Server selected SMB2 dialect (index %d), continuing with SMB2 negotiation", negRes1SMB.DialectIndex)
+			// Continue processing as SMB2 - the server should send an SMB2 negotiate response next
+			// We'll fall through to the normal SMB2 parsing below
+
+			// Re-send as SMB2 negotiate request
+			negReq, err := c.NewNegotiateReq()
+			if err != nil {
+				log.Errorln(err)
+				return err
+			}
+			log.Debugln("Re-sending SMB2 NegotiateProtocol request")
+			rr, err = c.send(&negReq)
+			if err != nil {
+				log.Debugln(err)
+				return err
+			}
+
+			negResBuf, err = c.recv(rr)
+			if err != nil {
+				log.Debugln(err)
+				return err
+			}
+		} else {
+			// Server selected an unknown dialect or only supports SMB1
+			err = fmt.Errorf("Target %s is only accepting SMBv1, but SMBv1 support is not implemented", c.conn.RemoteAddr().String())
+			log.Errorln(err)
+			return err
+		}
 	}
 
 	negRes1 := NewNegotiateRes()

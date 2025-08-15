@@ -30,14 +30,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jfjallid/go-smb/msdtyp"
-	"github.com/jfjallid/go-smb/ntlmssp"
-	"github.com/jfjallid/go-smb/smb/dcerpc"
+	"github.com/ericblavier/go-smb/msdtyp"
+	"github.com/ericblavier/go-smb/ntlmssp"
+	"github.com/ericblavier/go-smb/smb/dcerpc"
 	"github.com/jfjallid/golog"
 )
 
 var (
-	log                  = golog.Get("github.com/jfjallid/go-smb/smb/dcerpc/mssamr")
+	log                  = golog.Get("github.com/ericblavier/go-smb/smb/dcerpc/mssamr")
 	le  binary.ByteOrder = binary.LittleEndian
 )
 

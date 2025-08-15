@@ -28,7 +28,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/jfjallid/go-smb/smb/encoder"
+	"github.com/ericblavier/go-smb/smb/encoder"
 )
 
 const Signature = "NTLMSSP\x00"

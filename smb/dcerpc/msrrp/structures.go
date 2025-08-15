@@ -27,7 +27,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/jfjallid/go-smb/msdtyp"
+	"github.com/ericblavier/go-smb/msdtyp"
 )
 
 var (

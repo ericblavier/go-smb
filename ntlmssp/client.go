@@ -37,7 +37,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jfjallid/go-smb/smb/encoder"
+	"github.com/ericblavier/go-smb/smb/encoder"
 	"github.com/jfjallid/golog"
 )
 

@@ -38,7 +38,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/jfjallid/go-smb/smb"
+	"github.com/ericblavier/go-smb/smb"
 	"github.com/jfjallid/golog"
 )
 
@@ -46,7 +46,7 @@ var (
 	MSRPCUuidNdr                  = "8a885d04-1ceb-11c9-9fe8-08002b104860" // NDR Transfer Syntax version 2.0
 	re           regexp.Regexp    = *regexp.MustCompile(`([\dA-Fa-f]{8})-([\dA-Fa-f]{4})-([\dA-Fa-f]{4})-([\dA-Fa-f]{4})-([\dA-Fa-f]{4})([\dA-Fa-f]{8})`)
 	le           binary.ByteOrder = binary.LittleEndian
-	log                           = golog.Get("github.com/jfjallid/go-smb/smb/dcerpc")
+	log                           = golog.Get("github.com/ericblavier/go-smb/smb/dcerpc")
 )
 
 const (

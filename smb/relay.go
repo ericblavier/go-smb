@@ -32,9 +32,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/jfjallid/go-smb/gss"
-	"github.com/jfjallid/go-smb/ntlmssp"
-	"github.com/jfjallid/go-smb/smb/encoder"
+	"github.com/ericblavier/go-smb/gss"
+	"github.com/ericblavier/go-smb/ntlmssp"
+	"github.com/ericblavier/go-smb/smb/encoder"
 )
 
 // Useful with a generic struct when we don't know if this is a Negotiate or Auth message

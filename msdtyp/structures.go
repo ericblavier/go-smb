@@ -33,7 +33,7 @@ import (
 var (
 	le  = binary.LittleEndian
 	be  = binary.BigEndian
-	log = golog.Get("github.com/jfjallid/go-smb/msdtyp")
+	log = golog.Get("github.com/ericblavier/go-smb/msdtyp")
 )
 
 // MS-DTYP Section 2.4.6 Security_Descriptor Control Flag
