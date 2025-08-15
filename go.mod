@@ -1,4 +1,4 @@
-module github.com/jfjallid/go-smb
+module github.com/ericblavier/go-smb
 
 go 1.24
 
